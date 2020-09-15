@@ -94,25 +94,27 @@ function validLogin(data, user) {
 }
 
 // delete user
+function listenForDeleteUser() {
+    const deleteUser = document.getElementById("delete-user")
+    deleteUser.addEventListener("click", () => {
+        console.log("deleting user")
+        deleteUser()
+    })
+}
+
 function deleteUser(currentUser) {
     fetch(`http://localhost:3000/users/${currentUser.id}`, {
         method: "DELETE"
+    }).then(res => {
+        if (res.status == 200) {
+            console.log("user deleted")
+            document.location.reload(true);
+        }
     })
 }
 
 // edit user
-// function editUserForm() {
-//     let editForm = document.getElementById("edit-form")
-//     let editInput = document.getElementById("edit-input")
-//     editInput.value = currentUser.name
-//     editForm.addEventListener("submit", event => {
-//         event.preventDefault()
-//         let newName = editInput.value
-//         editUser(currentUser, newName)
-//     })
-// }
-
-function editUser(currentUser, newName) {
+function updateUser(currentUser, newName) {
     fetch(`http://localhost:3000/users/${currentUser.id}`, {
         method: "PATCH",
         headers: {
@@ -123,11 +125,48 @@ function editUser(currentUser, newName) {
     })
         .then(res => res.json())
         .then(data => {
+            console.log(data)
             editedUser = data
             let currentUserElement = document.getElementById("current-user")
             currentUserElement.textContent = editedUser.name
         })
         .catch(err => console.log(`ERROR: ${err}`))
+}
+
+function listenForEditUser() {
+    const editUserForm = document.getElementById("edit-user-form")
+    editUserForm.addEventListener("submit", event => {
+        event.preventDefault()
+        console.log("editing user")
+        const newName = document.getElementById("user-name");
+        // updateUser(currentUser, newName);
+
+        // hideModal()
+    })
+}
+
+// profile
+function listenForProfile() {
+    const profile = document.getElementById("user-profile")
+    profile.addEventListener("click", () => {
+        clearPhotos()
+        showProfile()
+    })
+}
+
+function showProfile() {
+    const profileDiv = document.getElementById("profile-div")
+    profileDiv.innerHTML = ''
+    const userNameH2 = document.createElement("h2")
+    userNameH2.textContent = currentUser.name
+    const editButton = document.createElement("button")
+    editButton.type = "button"
+    editButton.className = "btn btn-link"
+    editButton.setAttribute("data-toggle", "modal")
+    editButton.setAttribute("data-target", "#edit-user-modal")
+    editButton.textContent = "Edit"
+    userNameH2.appendChild(editButton)
+    profileDiv.appendChild(userNameH2)
 }
 
 // nav bar
@@ -139,7 +178,7 @@ function showNavOptions() {
 }
 
 // hide bg image
-function hideBg(){
+function hideBg() {
     console.log('hide bg!!')
     const landing = document.getElementById("landing")
     landing.innerHTML = ''
@@ -244,7 +283,7 @@ function makePhotoCard(photo) {
     a1.textContent = "New Board"
     a1.style.color = "green"
 
-    fetchBoards(dropdownContentDiv, a1)
+    fetchBoards(dropdownContentDiv, a1, photo)
 
 
     dropdownDiv.appendChild(dropdownContentDiv)
@@ -265,58 +304,69 @@ function listenForExplore() {
 }
 
 // board dropdown
-function fetchBoards(dropdownContentDiv, a1) {
+function fetchBoards(dropdownContentDiv, a1, photo) {
     fetch("http://localhost:3000/boards")
         .then((res) => {
             return res.json();
         })
         .then((jsonData) => {
             console.log(jsonData);
-            const boards = []
-            jsonData.forEach(board => {
-                if (board.user_id == currentUser.id) {
-                    boards.push(board)
-                }
-            });
-            console.log(boards)
-            boards.forEach(board => {
-                const a = document.createElement("a")
-                a.innerText = board.title
-                dropdownContentDiv.appendChild(a)
-                // dropdownContentDiv.appendChild(a1)
-            });
+            getUserBoards(jsonData, dropdownContentDiv, photo)
+
         }).catch((error) => {
             console.error("Fetch pictures Error", error);
         });
+}
+
+function getUserBoards(jsonData, dropdownContentDiv, photo) {
+    console.log("Boards", jsonData);
+    const boards = []
+    jsonData.forEach(board => {
+        if (board.user_id == currentUser.id) {
+            boards.push(board)
+        }
+    });
+    console.log(boards)
+    boards.forEach(board => {
+        const a = document.createElement("a")
+        a.innerText = board.title
+        a.id = board.id
+        a.addEventListener("click", () => {
+            postPhotos(a.id, photo)
+        })
+        dropdownContentDiv.appendChild(a)
+    });
+}
+
+// function clickableBoardDropdown(link) {
+//     link.addEventListener("click", () => {
+//         postPhotos(link.id)
+//     })
+// }
+
+function postPhotos(boardId, photo) {
+    console.log(boardId)
+    fetch('http://localhost:3000/photos', {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json"
+        },
+        body: JSON.stringify({ board_id: boardId, url: photo.urls.regular })
+    })
+        .then(res => {
+            return res.json()
+        })
+        .then(data => {
+            console.log(data)
+        })
+        .catch(err => console.log(`ERROR:${err}`))
 }
 
 function hideModal() {
     const modal = document.getElementById("board-modal")
     modal.classList.add("hide")
     modal.classList.remove("show")
-}
-
-// profile
-function listenForProfile() {
-    const profile = document.getElementById("user-profile")
-    profile.addEventListener("click", () => {
-        clearPhotos()
-        showProfile()
-    })
-}
-
-function showProfile() {
-    const profileDiv = document.getElementById("profile-div")
-    const userNameH2 = document.createElement("h2")
-    userNameH2.textContent = currentUser.name
-    const editButton = document.createElement("button")
-    editButton.type = "button"
-    editButton.className = "btn btn-link"
-    editButton.setAttribute("data-toggle", "modal")
-    editButton.setAttribute("data-target", "#edit-user-modal")
-    editButton.textContent = "Edit"
-    userNameH2.appendChild(editButton)
-    profileDiv.appendChild(userNameH2)
 }
 
 //<----------------------------------------------------------------------------->
@@ -339,6 +389,10 @@ function filloutDropDown() {
         console.log("Clicked on logout");
         document.location.reload(true);
     });
+}
+
+function logout() {
+    document.location.reload(true);
 }
 
 // new board
